@@ -4,6 +4,7 @@ import (
 	//"bytes"
 	"fmt"
 	//"io"
+	"encoding/binary"
 	"math/big"
 	"math/rand"
 	"os"
@@ -314,6 +315,7 @@ func encryptFile(fileName string, key int) {
 	for i := 0; i < len(fileBytes); i++ {
 		c1, c2 := encrypt(p, g, e2, k, int(fileBytes[i]))
 		_, err := file.WriteString(strconv.Itoa(c1) + " " + strconv.Itoa(c2) + " ")
+		//fmt.Println("C1, C2: ", c1, c2)
 		if err != nil {
 			fmt.Println("Error with output file", err)
 			return
@@ -325,26 +327,37 @@ func encryptFile(fileName string, key int) {
 
 }
 
-func readBytes(file *os.File) []byte {
+func readBytes(file *os.File) []uint32 {
 
-	var returnByte []byte
+	var returnByte []uint32
 	var offset int64 = 0
 
 	for {
-		temp := make([]byte, 1)
+		temp := make([]byte, 4)
+
 		read, err := file.ReadAt(temp, offset)
+
+		fmt.Println(temp)
 
 		if err != nil || read < len(temp) {
 			break
 		} else {
-			returnByte = append(returnByte, temp[0])
-			offset += 1
+			appendInt := binary.LittleEndian.Uint32(temp)
+			returnByte = append(returnByte, appendInt)
+			offset += 5
 		}
 	}
 
 	return returnByte
 
 }
+
+// func writeBytes(file *os.File, bytes []uint32) {
+// 	for i := 0; i < len(bytes); i++ {
+// 		temp := make([]byte, 4)
+
+// 	}
+// }
 
 func decryptFile(outputFileName string) {
 
@@ -397,9 +410,26 @@ func decryptFile(outputFileName string) {
 			fmt.Println(err)
 			return
 		}
-		test := decrypt(p, d, c1, c2)
-		fmt.Printf("%c\n", test)
-		fmt.Fprintf(file, "%c", test)
+		test := uint32(decrypt(p, d, c1, c2))
+
+		// fmt.Println("C1, C2: ", c1, c2)
+
+		temp := make([]byte, 2)
+
+		binary.LittleEndian.PutUint16(temp[0:], uint16(test&0xFFFF))
+
+		fmt.Printf("%c%c\n", temp[0], temp[1])
+		fmt.Fprintf(file, "%c", temp[0])
+		fmt.Fprintf(file, "%c", temp[1])
+
+		binary.LittleEndian.PutUint16(temp[0:], uint16(test>>16))
+
+		fmt.Printf("%c%c\n", temp[0], temp[1])
+		fmt.Fprintf(file, "%c", temp[0])
+		fmt.Fprintf(file, "%c", temp[1])
+
+		// fmt.Printf("%x\n", test)
+		// fmt.Fprintf(file, "%x", test)
 		read, err = fmt.Fscanf(cypherFile, "%d %d", &c1, &c2)
 	}
 
